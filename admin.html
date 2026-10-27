@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#8a0f0f">
+<title>IAPSMCON Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+  // ====== SETTING: paste your Apps Script web app URL (ends in /exec) between the quotes ======
+  var API_URL = 'PASTE_YOUR_WEB_APP_URL_HERE';
+</script>
+<style>
+  :root { --maroon: #8a0f0f; --brown: #7a2f00; --gold: #f2c46d; --beige: #f2e0d4; --ink: #2a1a14; --muted: #6b5448; --ok: #1e7a3c; --bad: #b3261e; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--beige); color: var(--ink); font-family: 'Montserrat', 'Segoe UI', Arial, sans-serif; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 0 14px 40px; }
+  h1 { font-family: 'League Spartan', sans-serif; color: var(--maroon); font-size: 30px; margin: 18px 0 2px; text-align: center; }
+  .sub { text-align: center; font-weight: 800; color: var(--brown); margin: 0 0 16px; letter-spacing: .1em; font-size: 12px; }
+  .card { background: #fff; border-radius: 18px; padding: 18px; box-shadow: 0 6px 18px rgba(42,26,20,.08); margin-bottom: 12px; }
+  button { font-family: inherit; font-weight: 800; border: 0; border-radius: 12px; cursor: pointer; min-height: 44px; padding: 10px 16px; font-size: 15px; }
+  button:disabled { opacity: .5; }
+  .btn { background: var(--maroon); color: #fff; }
+  .btn-lite { background: #f6ebe4; color: var(--maroon); }
+  .btn-undo { background: #fff; color: var(--bad); border: 2px solid var(--bad); min-height: 38px; padding: 6px 12px; font-size: 13px; }
+  .btn-mark { background: var(--maroon); color: #fff; min-height: 38px; padding: 6px 14px; font-size: 13px; }
+  input { width: 100%; font: inherit; font-size: 17px; padding: 12px 14px; border-radius: 12px; border: 2px solid #e2cfc3; background: #fff; }
+  label { display: block; font-size: 12px; font-weight: 800; letter-spacing: .08em; color: var(--brown); margin: 12px 0 6px; }
+  .err { color: var(--bad); font-weight: 700; font-size: 14px; margin-top: 8px; min-height: 18px; }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--maroon); color: #fff; border-radius: 0 0 18px 18px; padding: 12px 16px; margin: 0 -14px 14px; }
+  .top b { font-family: 'League Spartan', sans-serif; font-size: 22px; }
+  .top button { background: rgba(255,255,255,.16); color: #fff; min-height: 36px; padding: 6px 12px; font-size: 13px; }
+  .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+  .tabs button { background: #fff; color: var(--maroon); }
+  .tabs button.on { background: var(--maroon); color: #fff; }
+  .res { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 12px; background: #fff; margin-bottom: 8px; cursor: pointer; }
+  .res .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .res b { display: block; font-size: 15px; }
+  .res span { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .band { display: inline-block; color: #fff; font-weight: 800; letter-spacing: .12em; font-size: 12px; padding: 5px 10px; border-radius: 999px; }
+  .name { font-family: 'League Spartan', sans-serif; font-size: 28px; line-height: 1.05; margin: 8px 0 4px; }
+  .meta { font-size: 14px; font-weight: 600; color: var(--muted); line-height: 1.4; }
+  .row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid #f0e2d8; }
+  .row:first-of-type { border-top: 0; }
+  .row .l { flex: 1; font-weight: 700; font-size: 15px; }
+  .row .l small { display: block; font-size: 12px; color: var(--muted); font-weight: 600; }
+  .row .done { color: var(--ok); font-size: 12px; font-weight: 700; text-align: right; }
+  .row.today { background: #fff8ec; margin: 0 -10px; padding: 10px; border-radius: 10px; }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 9px 4px; border-top: 1px solid #f0e2d8; font-weight: 700; font-size: 14px; }
+  td.n { text-align: right; font-family: 'League Spartan', sans-serif; font-size: 22px; color: var(--maroon); }
+  #cam { width: 100%; border-radius: 14px; overflow: hidden; background: #000; min-height: 260px; }
+  .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 12px; font-weight: 700; display: none; }
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<div class="toast" id="toast"></div>
+<script>
+var mem = {};
+var store = {
+  get: function (k) { try { return localStorage.getItem(k) || mem[k] || ''; } catch (e) { return mem[k] || ''; } },
+  set: function (k, v) { mem[k] = v; try { localStorage.setItem(k, v); } catch (e) {} },
+  del: function (k) { delete mem[k]; try { localStorage.removeItem(k); } catch (e) {} }
+};
+var USER = store.get('iapsm_admin_user'), PIN = store.get('iapsm_admin_pin');
+var ITEMS = [], TODAY = '', TAB = 'find', qr = null;
+var app = document.getElementById('app');
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+function api(body) {
+  body.user = USER; body.pin = PIN;
+  return fetch(API_URL, { method: 'POST', body: JSON.stringify(body), redirect: 'follow' }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+}
+function toast(m) { var t = document.getElementById('toast'); t.textContent = m; t.style.display = 'block'; clearTimeout(toast.h); toast.h = setTimeout(function () { t.style.display = 'none'; }, 2500); }
+function itemName(it) { return it.label + (it.day ? ' · ' + it.day : ''); }
+function fail(e) { toast('No connection. Try again.'); }
+
+/* ---------- login ---------- */
+function showLogin(msg) {
+  app.innerHTML = '<h1>DELHI-IAPSMCON 2026</h1><p class="sub">ADMIN · CHECK-IN CONTROL</p><div class="card">' +
+    '<label for="u">ADMIN USER ID</label><input id="u" autocapitalize="none" value="' + esc(USER || '') + '">' +
+    '<label for="p">PIN</label><input id="p" type="password">' +
+    '<button class="btn" id="go" style="width:100%;margin-top:16px">Log in</button><div class="err" id="err">' + esc(msg || '') + '</div></div>';
+  document.getElementById('go').onclick = function () { login(document.getElementById('u').value.trim(), document.getElementById('p').value.trim()); };
+  document.getElementById('p').addEventListener('keydown', function (e) { if (e.key === 'Enter') document.getElementById('go').click(); });
+}
+function login(u, p) {
+  if (/PASTE_YOUR/.test(API_URL)) { showLogin('Setup needed: the web app URL has not been added to this page yet.'); return; }
+  USER = u; PIN = p;
+  api({ action: 'login' }).then(function (r) {
+    if (!r.ok) { store.del('iapsm_admin_pin'); showLogin(r.message || 'Wrong User ID or PIN.'); return; }
+    if (r.role !== 'admin') { showLogin('This is a station login. Use the admin User ID.'); return; }
+    store.set('iapsm_admin_user', u); store.set('iapsm_admin_pin', p);
+    ITEMS = r.items; TODAY = r.today;
+    shell(); showTab('find');
+  }).catch(function () { showLogin('No connection. Check the internet and try again.'); });
+}
+function logout() { store.del('iapsm_admin_pin'); PIN = ''; stopCam(); showLogin(''); }
+
+/* ---------- layout ---------- */
+function shell() {
+  app.innerHTML = '<div class="top"><b>Admin</b><button id="lo">Log out</button></div>' +
+    '<div class="tabs"><button data-t="find">Find</button><button data-t="scan">Scan QR</button><button data-t="counts">Counts</button></div><div id="body"></div>';
+  document.getElementById('lo').onclick = function () { if (confirm('Log out?')) logout(); };
+  Array.prototype.forEach.call(app.querySelectorAll('[data-t]'), function (b) { b.onclick = function () { showTab(b.getAttribute('data-t')); }; });
+}
+function showTab(t) {
+  TAB = t; stopCam();
+  Array.prototype.forEach.call(app.querySelectorAll('[data-t]'), function (b) { b.classList.toggle('on', b.getAttribute('data-t') === t); });
+  var body = document.getElementById('body');
+  if (t === 'find') {
+    body.innerHTML = '<div class="card"><label for="q">NAME, REG ID OR PHONE</label><input id="q" type="search" autocomplete="off" placeholder="Start typing…"></div><div id="list"></div>';
+    var q = document.getElementById('q'), h = null;
+    q.oninput = function () {
+      clearTimeout(h); var v = q.value;
+      h = setTimeout(function () {
+        if (v.trim().length < 2) { document.getElementById('list').innerHTML = ''; return; }
+        api({ action: 'search', q: v }).then(function (r) {
+          if (q.value !== v) return;
+          document.getElementById('list').innerHTML = r.results.length ? r.results.map(function (p, i) {
+            return '<div class="res" data-id="' + esc(p.id) + '"><span class="dot" style="background:' + p.color + '"></span><div><b>' + esc(p.name) + '</b><span>' + esc(p.id) + ' · ' + esc(p.catLabel) + ' · ' + esc(p.inst) + '</span></div></div>';
+          }).join('') : '<p class="meta" style="text-align:center">No match.</p>';
+          Array.prototype.forEach.call(document.querySelectorAll('.res'), function (el) { el.onclick = function () { openPerson(el.getAttribute('data-id')); }; });
+        }).catch(fail);
+      }, 300);
+    };
+    q.focus();
+  } else if (t === 'scan') {
+    body.innerHTML = '<div class="card"><div id="cam"></div><p class="meta" style="text-align:center;margin:10px 0 0">Scan a badge or e-pass to open that delegate.</p></div>';
+    startCam();
+  } else {
+    body.innerHTML = '<div class="card" id="cnt"><p class="meta">Loading…</p></div>';
+    loadCounts();
+  }
+}
+
+/* ---------- camera lookup ---------- */
+function startCam() {
+  if (typeof Html5Qrcode === 'undefined') { toast('Scanner could not load.'); return; }
+  qr = new Html5Qrcode('cam', { formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE], experimentalFeatures: { useBarCodeDetectorIfSupported: true }, verbose: false });
+  var busy = false;
+  qr.start({ facingMode: 'environment' }, { fps: 10, qrbox: function (w, h) { var s = Math.floor(Math.min(w, h) * 0.85); return { width: s, height: s }; } }, function (text) {
+    if (busy) return; busy = true;
+    api({ action: 'lookup', qr: text }).then(function (r) {
+      if (!r.ok) { toast(r.message || 'Invalid QR'); busy = false; return; }
+      stopCam().then(function () { renderPerson(r); });
+    }).catch(function () { fail(); busy = false; });
+  }, function () {}).catch(function () { toast('Camera could not start. Allow camera access.'); });
+}
+function stopCam() {
+  var q = qr; qr = null;
+  try { return q && q.isScanning ? q.stop().then(function () { q.clear(); }) : Promise.resolve(); } catch (e) { return Promise.resolve(); }
+}
+
+/* ---------- delegate detail ---------- */
+function openPerson(id) {
+  document.getElementById('body').innerHTML = '<div class="card"><p class="meta">Loading…</p></div>';
+  api({ action: 'status', id: id }).then(function (r) { if (!r.ok) { toast(r.message); return; } renderPerson(r); }).catch(fail);
+}
+function renderPerson(r) {
+  ITEMS = r.items || ITEMS; TODAY = r.today || TODAY;
+  var p = r.person, s = r.status || {};
+  var html = '<div class="card"><span class="band" style="background:' + p.color + '">' + esc(p.band) + '</span>' +
+    '<div class="name" style="color:' + p.color + '">' + esc(p.name) + '</div>' +
+    '<div class="meta">' + esc(p.desig) + ' · ' + esc(p.inst) + '<br><b>' + esc(p.id) + '</b> · ' + esc(p.catLabel) +
+    (p.hasWs ? '<br>Workshop: ' + esc(p.wsName) : '') + '</div></div><div class="card">';
+  ITEMS.forEach(function (it) {
+    var d = s[it.key], blocked = it.workshopOnly && !p.hasWs;
+    html += '<div class="row' + (it.date && it.date === TODAY ? ' today' : '') + '"><div class="l">' + esc(it.label) + '<small>' + esc(it.day || 'Any day') + '</small></div>';
+    if (d) html += '<div class="done">✓ ' + esc(d.at) + '<br>' + esc(d.desk) + '</div><button class="btn-undo" data-u="' + it.key + '">Undo</button>';
+    else if (blocked) html += '<div class="meta" style="font-size:12px">No workshop</div>';
+    else html += '<button class="btn-mark" data-m="' + it.key + '">Mark</button>';
+    html += '</div>';
+  });
+  html += '</div><button class="btn-lite" style="width:100%" id="back">Back</button>';
+  document.getElementById('body').innerHTML = html;
+  document.getElementById('back').onclick = function () { showTab(TAB === 'scan' ? 'scan' : 'find'); };
+  Array.prototype.forEach.call(document.querySelectorAll('[data-u]'), function (b) {
+    b.onclick = function () {
+      var it = ITEMS.filter(function (x) { return x.key === b.getAttribute('data-u'); })[0];
+      if (!confirm('UNDO "' + itemName(it) + '" for ' + p.name + '?')) return;
+      b.disabled = true;
+      api({ action: 'undo', id: p.id, item: it.key }).then(function (x) { if (!x.ok) { toast(x.message); return; } toast('Undone: ' + itemName(it)); renderPerson(x); }).catch(fail);
+    };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-m]'), function (b) {
+    b.onclick = function () {
+      var it = ITEMS.filter(function (x) { return x.key === b.getAttribute('data-m'); })[0];
+      if (!confirm('Mark "' + itemName(it) + '" for ' + p.name + '?')) return;
+      b.disabled = true;
+      api({ action: 'mark', id: p.id, item: it.key }).then(function (x) { if (!x.ok) { toast(x.message); return; } toast(x.code === 'ALREADY' ? 'Already marked' : 'Marked: ' + itemName(it)); renderPerson(x); }).catch(fail);
+    };
+  });
+  window.scrollTo(0, 0);
+}
+
+/* ---------- counts ---------- */
+function loadCounts() {
+  api({ action: 'counts' }).then(function (r) {
+    if (!r.ok) { toast(r.message); return; }
+    var html = '<table><tr><td>Total registered</td><td class="n">' + r.total + '</td></tr>';
+    r.items.forEach(function (it) { html += '<tr' + (it.date === r.today ? ' style="background:#fff8ec"' : '') + '><td>' + esc(itemName(it)) + '</td><td class="n">' + r.counts[it.key] + '</td></tr>'; });
+    html += '</table><button class="btn-lite" style="width:100%;margin-top:12px" id="rf">Refresh</button>';
+    document.getElementById('cnt').innerHTML = html;
+    document.getElementById('rf').onclick = loadCounts;
+  }).catch(fail);
+}
+
+if (USER && PIN) login(USER, PIN); else showLogin('');
+</script>
+</body>
+</html>

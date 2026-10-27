@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#8a0f0f">
+<title>IAPSMCON Scanner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=League+Spartan:wght@700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+  // ====== SETTING: paste your Apps Script web app URL (ends in /exec) between the quotes ======
+  var API_URL = 'PASTE_YOUR_WEB_APP_URL_HERE';
+</script>
+<style>
+  :root { --maroon: #8a0f0f; --brown: #7a2f00; --gold: #f2c46d; --beige: #f2e0d4; --ink: #2a1a14; --muted: #6b5448;
+          --ok: #1e7a3c; --warn: #b26a00; --bad: #b3261e; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: var(--beige); color: var(--ink); font-family: 'Montserrat', 'Segoe UI', Arial, sans-serif; }
+  button { font-family: inherit; font-weight: 800; border: 0; border-radius: 14px; cursor: pointer; min-height: 48px; padding: 12px 18px; font-size: 16px; }
+  .btn { background: var(--maroon); color: #fff; }
+  .btn-lite { background: #fff; color: var(--maroon); }
+  input { width: 100%; font: inherit; font-size: 18px; padding: 14px; border-radius: 14px; border: 2px solid #e2cfc3; background: #fff; }
+  label { display: block; font-size: 13px; font-weight: 800; letter-spacing: .08em; color: var(--brown); margin: 14px 0 6px; }
+
+  /* login */
+  #login { max-width: 420px; margin: 0 auto; padding: 28px 18px; }
+  #login h1 { font-family: 'League Spartan', sans-serif; color: var(--maroon); font-size: 32px; margin: 8px 0 2px; text-align: center; }
+  #login p.sub { text-align: center; font-weight: 700; color: var(--brown); margin: 0 0 18px; letter-spacing: .06em; font-size: 13px; }
+  .card { background: #fff; border-radius: 20px; padding: 20px; box-shadow: 0 8px 22px rgba(42,26,20,.1); }
+  .err { color: var(--bad); font-weight: 700; font-size: 14px; margin-top: 10px; min-height: 20px; }
+
+  /* scanner */
+  #scan { position: fixed; inset: 0; display: none; flex-direction: column; background: #111; }
+  .bar { background: var(--maroon); color: #fff; padding: 10px 14px calc(10px) 14px; padding-top: max(10px, env(safe-area-inset-top)); display: flex; align-items: center; gap: 10px; }
+  .bar .st { flex: 1; min-width: 0; }
+  .bar .st b { display: block; font-family: 'League Spartan', sans-serif; font-size: 22px; line-height: 1.05; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar .st span { display: block; font-size: 13px; font-weight: 700; color: #f6d4a8; }
+  .bar .cnt { text-align: center; background: rgba(255,255,255,.14); border-radius: 12px; padding: 4px 10px; }
+  .bar .cnt b { display: block; font-family: 'League Spartan', sans-serif; font-size: 24px; line-height: 1; }
+  .bar .cnt span { font-size: 10px; font-weight: 800; letter-spacing: .08em; }
+  .bar button { min-height: 40px; padding: 8px 12px; font-size: 13px; background: rgba(255,255,255,.16); color: #fff; }
+  #readerWrap { flex: 1; position: relative; overflow: hidden; background: #000; display: flex; align-items: center; }
+  #cam { width: 100%; }
+  #cam video { width: 100% !important; height: auto !important; display: block; }
+  .hint { position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 14px max(14px, env(safe-area-inset-bottom)); text-align: center; color: #fff; font-weight: 700; font-size: 15px; background: linear-gradient(transparent, rgba(0,0,0,.7)); pointer-events: none; }
+  #camErr { display: none; position: absolute; inset: 0; align-items: center; justify-content: center; padding: 24px; text-align: center; color: #fff; flex-direction: column; gap: 14px; }
+
+  /* result overlay */
+  #res { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; padding: 18px; background: rgba(0,0,0,.45); }
+  #res .box { width: 100%; max-width: 440px; border-radius: 24px; padding: 22px 20px; text-align: center; color: #fff; box-shadow: 0 18px 40px rgba(0,0,0,.4); }
+  #res .ic { font-size: 54px; line-height: 1; font-weight: 800; }
+  #res .big { font-family: 'League Spartan', sans-serif; font-size: 34px; line-height: 1.05; margin-top: 6px; }
+  #res .who { margin-top: 14px; background: rgba(255,255,255,.95); color: var(--ink); border-radius: 16px; padding: 12px; }
+  #res .who .nm { font-family: 'League Spartan', sans-serif; font-size: 26px; line-height: 1.05; }
+  #res .who .mt { font-size: 14px; font-weight: 700; color: var(--muted); margin-top: 4px; }
+  #res .who .tag { display: inline-block; margin-top: 8px; color: #fff; font-size: 12px; font-weight: 800; letter-spacing: .1em; padding: 4px 10px; border-radius: 999px; }
+  #res .sub { margin-top: 12px; font-size: 16px; font-weight: 700; line-height: 1.4; }
+  #res .tap { margin-top: 14px; font-size: 12px; font-weight: 700; opacity: .8; }
+  .r-ok { background: var(--ok); } .r-warn { background: var(--warn); } .r-bad { background: var(--bad); } .r-wait { background: #444; }
+</style>
+</head>
+<body>
+
+<div id="login">
+  <h1>DELHI-IAPSMCON 2026</h1>
+  <p class="sub">CHECK-IN SCANNER</p>
+  <div class="card">
+    <label for="u">USER ID</label>
+    <input id="u" autocomplete="username" autocapitalize="none" placeholder="e.g. desk1">
+    <label for="p">PIN</label>
+    <input id="p" type="password" autocomplete="current-password" placeholder="PIN">
+    <button class="btn" id="go" style="width: 100%; margin-top: 18px;">Log in &amp; open camera</button>
+    <div class="err" id="lerr"></div>
+  </div>
+</div>
+
+<div id="scan">
+  <div class="bar">
+    <div class="st"><b id="stName">Station</b><span id="stItem"></span></div>
+    <div class="cnt"><b id="stCount">–</b><span>TODAY</span></div>
+    <button id="out">Log out</button>
+  </div>
+  <div id="readerWrap">
+    <div id="cam"></div>
+    <div class="hint">Point the camera at the QR code on the badge or e-pass</div>
+    <div id="camErr"><div id="camMsg">Camera could not start.</div><button class="btn" id="camRetry">Start camera</button></div>
+  </div>
+</div>
+
+<div id="res"><div class="box" id="resBox"></div></div>
+
+<script>
+var mem = {};
+var store = {
+  get: function (k) { try { return localStorage.getItem(k) || mem[k] || ''; } catch (e) { return mem[k] || ''; } },
+  set: function (k, v) { mem[k] = v; try { localStorage.setItem(k, v); } catch (e) {} },
+  del: function (k) { delete mem[k]; try { localStorage.removeItem(k); } catch (e) {} }
+};
+var USER = store.get('iapsm_scan_user'), PIN = store.get('iapsm_scan_pin');
+var $ = function (id) { return document.getElementById(id); };
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+function api(body) {
+  return fetch(API_URL, { method: 'POST', body: JSON.stringify(body), redirect: 'follow' })
+    .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+}
+
+/* ---------- sounds + vibration ---------- */
+var actx = null;
+function beep(kind) {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    var seq = kind === 'ok' ? [[880, 0.12]] : kind === 'warn' ? [[660, 0.1], [660, 0.1]] : [[220, 0.35]];
+    var t = actx.currentTime;
+    seq.forEach(function (s) {
+      var o = actx.createOscillator(), g = actx.createGain();
+      o.frequency.value = s[0]; o.type = kind === 'bad' ? 'square' : 'sine';
+      g.gain.setValueAtTime(0.25, t); g.gain.exponentialRampToValueAtTime(0.001, t + s[1]);
+      o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t + s[1]); t += s[1] + 0.08;
+    });
+  } catch (e) {}
+  try { navigator.vibrate && navigator.vibrate(kind === 'ok' ? 120 : kind === 'warn' ? [80, 60, 80] : [300, 100, 300]); } catch (e) {}
+}
+
+/* ---------- login ---------- */
+function doLogin(u, p, silent) {
+  $('lerr').textContent = '';
+  if (/PASTE_YOUR/.test(API_URL)) { $('lerr').textContent = 'Setup needed: the web app URL has not been added to this page yet.'; return; }
+  $('go').disabled = true; $('go').textContent = 'Checking…';
+  api({ action: 'login', user: u, pin: p }).then(function (r) {
+    $('go').disabled = false; $('go').textContent = 'Log in & open camera';
+    if (!r.ok) { $('lerr').textContent = r.message || 'Wrong User ID or PIN.'; store.del('iapsm_scan_pin'); return; }
+    if (r.role === 'admin') { $('lerr').textContent = 'This is the admin login. Please use the admin page.'; return; }
+    USER = u; PIN = p; store.set('iapsm_scan_user', u); store.set('iapsm_scan_pin', p);
+    $('stName').textContent = r.label;
+    $('stItem').textContent = r.item ? 'Recording: ' + r.item : 'Nothing to record today';
+    $('stCount').textContent = r.count == null ? '–' : r.count;
+    $('login').style.display = 'none'; $('scan').style.display = 'flex';
+    startCamera();
+    keepAwake();
+  }).catch(function (e) {
+    $('go').disabled = false; $('go').textContent = 'Log in & open camera';
+    $('lerr').textContent = 'No connection. Check the internet and try again.';
+  });
+}
+$('go').onclick = function () {
+  try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+  doLogin($('u').value.trim(), $('p').value.trim());
+};
+$('p').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('go').click(); });
+$('out').onclick = function () {
+  if (!confirm('Log out of this station?')) return;
+  store.del('iapsm_scan_pin'); PIN = '';
+  stopCamera().then(function () { location.reload(); });
+};
+
+/* ---------- camera ---------- */
+var qr = null, busy = false, lastText = '', lastAt = 0;
+function startCamera() {
+  $('camErr').style.display = 'none';
+  if (typeof Html5Qrcode === 'undefined') { camFail('The scanner could not load. Check the internet and reload the page.'); return; }
+  qr = qr || new Html5Qrcode('cam', { formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE], experimentalFeatures: { useBarCodeDetectorIfSupported: true }, verbose: false });
+  qr.start({ facingMode: 'environment' }, {
+    fps: 12,
+    qrbox: function (w, h) { var s = Math.floor(Math.min(w, h) * 0.8); return { width: s, height: s }; }
+  }, onScan, function () {}).catch(function (e) {
+    camFail('Camera could not start. Allow camera access for this page in your browser, then tap Start camera.');
+  });
+}
+function stopCamera() { try { return qr && qr.isScanning ? qr.stop() : Promise.resolve(); } catch (e) { return Promise.resolve(); } }
+function camFail(msg) { $('camMsg').textContent = msg; $('camErr').style.display = 'flex'; }
+$('camRetry').onclick = startCamera;
+
+var wakeLock = null;
+function keepAwake() { try { navigator.wakeLock && navigator.wakeLock.request('screen').then(function (w) { wakeLock = w; }).catch(function () {}); } catch (e) {} }
+document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && PIN) keepAwake(); });
+
+function onScan(text) {
+  var now = Date.now();
+  if (busy) return;
+  if (text === lastText && now - lastAt < 5000) return;
+  lastText = text; lastAt = now; busy = true;
+  showResult('wait', '<div class="ic">…</div><div class="big">Checking</div>', 0);
+  api({ action: 'scan', user: USER, pin: PIN, qr: text }).then(function (r) {
+    if (!r.ok) {
+      if (r.error === 'LOGIN') { store.del('iapsm_scan_pin'); alert('Your PIN was changed. Please log in again.'); location.reload(); return; }
+      return showResult('bad', '<div class="ic">!</div><div class="big">Error</div><div class="sub">' + esc(r.message || 'Please scan again.') + '</div>', 3500, 'bad');
+    }
+    if (r.count != null) $('stCount').textContent = r.count;
+    var who = r.person ? '<div class="who"><div class="nm" style="color:' + r.person.color + '">' + esc(r.person.name) + '</div>' +
+      '<div class="mt">' + esc(r.person.id) + ' · ' + esc(r.person.inst || r.person.desig) + '</div>' +
+      '<span class="tag" style="background:' + r.person.color + '">' + esc(r.person.band) + '</span></div>' : '';
+    if (r.code === 'MARKED') return showResult('ok', '<div class="ic">✓</div><div class="big">Marked</div><div class="sub">' + esc(r.item) + '</div>' + who, 2200, 'ok');
+    if (r.code === 'ALREADY') return showResult('warn', '<div class="ic">!</div><div class="big">Already marked</div><div class="sub">' + esc(r.item) + '<br>at ' + esc(r.at) + ' · ' + esc(r.by) + '</div>' + who, 3500, 'warn');
+    if (r.code === 'NO_WORKSHOP') return showResult('bad', '<div class="ic">✕</div><div class="big">Not registered for a workshop</div><div class="sub">Send to the help desk.</div>' + who, 4000, 'bad');
+    if (r.code === 'NOT_TODAY') return showResult('bad', '<div class="ic">✕</div><div class="big">Nothing to record today</div><div class="sub">This station has no item for today\'s date.</div>' + who, 3500, 'bad');
+    if (r.code === 'NOT_FOUND') return showResult('bad', '<div class="ic">✕</div><div class="big">Registration not found</div><div class="sub">Send to the help desk.</div>', 3500, 'bad');
+    return showResult('bad', '<div class="ic">✕</div><div class="big">Invalid QR code</div><div class="sub">Not a DELHI-IAPSMCON 2026 e-pass. Send to the help desk.</div>', 3500, 'bad');
+  }).catch(function () {
+    lastText = '';
+    showResult('bad', '<div class="ic">!</div><div class="big">No connection</div><div class="sub">Nothing was recorded. Check the internet and scan again.</div>', 3500, 'bad');
+  });
+}
+
+var hideTimer = null;
+function showResult(kind, html, ms, sound) {
+  clearTimeout(hideTimer);
+  $('resBox').className = 'box r-' + kind;
+  $('resBox').innerHTML = html + (ms ? '<div class="tap">Tap to scan next</div>' : '');
+  $('res').style.display = 'flex';
+  if (sound) beep(sound);
+  if (ms) hideTimer = setTimeout(hideResult, ms);
+}
+function hideResult() { clearTimeout(hideTimer); $('res').style.display = 'none'; busy = false; }
+$('res').onclick = function () { if ($('resBox').className.indexOf('r-wait') < 0) hideResult(); };
+
+/* ---------- start ---------- */
+if (USER) $('u').value = USER;
+if (USER && PIN) doLogin(USER, PIN, true);
+</script>
+</body>
+</html>
